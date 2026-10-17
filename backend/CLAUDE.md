@@ -20,6 +20,9 @@ uv run uvicorn app.main:app --reload   # http://localhost:8000 (reads ../.env)
 - `app/services/` — business logic. **Use `actions.trade / add_to_watchlist / remove_from_watchlist` for any user-initiated change (including LLM chat)**: they validate, run in one transaction, and keep the data source's tracked tickers in sync
 - `app/api/` — thin routers over services; get the `AppContext` via `Depends(get_ctx)`
 
+- `app/llm/` — `schema.py` (`LLMResponse` structured output; its docstring and field descriptions are sent to the model), `client.py` (LiteLLM → OpenRouter → Cerebras, `gpt-oss-120b`; raises `LLMError`), `mock.py` (regex mock for `LLM_MOCK=true`), `prompt.py` (system prompt, portfolio context)
+- `app/services/chat.py` — `handle_message()`: stores the user message, calls mock or real LLM with the last 20 messages, runs watchlist changes then trades via `actions`, appends ⚠ notes for failures, stores the assistant message with its `actions` JSON. LLM failure → 502 `llm_error`, no actions run
+
 Tests for this layer are in `tests/core/` and use a `FakeSource` with fixed prices (see `tests/core/conftest.py`).
 
 ## Market Data API
