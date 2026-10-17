@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+/* FinAlly terminal theme (PLAN §2): dark only, muted borders, no pure black. */
+@theme {
+  --color-bg: #0d1117;
+  --color-panel: #121821;
+  --color-panel-2: #161d27;
+  --color-line: #222b38;
+  --color-line-strong: #2f3a4a;
+  --color-ink: #e6edf3;
+  --color-ink-2: #9aa7b5;
+  --color-ink-3: #6b7785;
+
+  --color-accent: #ecad0a;
+  --color-blue: #209dd7;
+  --color-purple: #753991;
+  --color-purple-hover: #8a46aa;
+  --color-up: #26a69a;
+  --color-down: #ef5350;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1;
+}
+
+/* Price flash: class is applied on change and removed after ~500ms; the
+   background fades back through the transition. */
+.flash-cell {
+  transition: background-color 500ms ease-out;
+}
+.flash-up {
+  background-color: rgb(38 166 154 / 0.18);
+  transition: none;
+}
+.flash-down {
+  background-color: rgb(239 83 80 / 0.18);
+  transition: none;
+}
+
+/* Thin scrollbars for dense panels */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash-cell {
+    transition: none;
+  }
+}
