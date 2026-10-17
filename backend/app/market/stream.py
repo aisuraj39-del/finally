@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from collections.abc import AsyncGenerator
 
 from fastapi import APIRouter, Request
@@ -14,14 +15,17 @@ from .cache import PriceCache
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/stream", tags=["streaming"])
+# Send an SSE comment if no data event has gone out for this long (seconds)
+KEEPALIVE_INTERVAL = 15.0
 
 
 def create_stream_router(price_cache: PriceCache) -> APIRouter:
     """Create the SSE streaming router with a reference to the price cache.
 
-    This factory pattern lets us inject the PriceCache without globals.
+    This factory pattern lets us inject the PriceCache without globals. A new
+    router is created on every call so repeated calls never duplicate routes.
     """
+    router = APIRouter(prefix="/api/stream", tags=["streaming"])
 
     @router.get("/prices")
     async def stream_prices(request: Request) -> StreamingResponse:
@@ -52,16 +56,19 @@ async def _generate_events(
     price_cache: PriceCache,
     request: Request,
     interval: float = 0.5,
+    keepalive_interval: float = KEEPALIVE_INTERVAL,
 ) -> AsyncGenerator[str, None]:
     """Async generator that yields SSE-formatted price events.
 
-    Sends all prices every `interval` seconds. Stops when the client
-    disconnects (detected via request.is_disconnected()).
+    Sends all prices every `interval` seconds when the cache has changed, and a
+    `: ping` comment after `keepalive_interval` seconds without a data event.
+    Stops when the client disconnects (detected via request.is_disconnected()).
     """
     # Tell the client to retry after 1 second if the connection drops
     yield "retry: 1000\n\n"
 
     last_version = -1
+    last_sent = time.monotonic()
     client_ip = request.client.host if request.client else "unknown"
     logger.info("SSE client connected: %s", client_ip)
 
@@ -81,6 +88,11 @@ async def _generate_events(
                     data = {ticker: update.to_dict() for ticker, update in prices.items()}
                     payload = json.dumps(data)
                     yield f"data: {payload}\n\n"
+                    last_sent = time.monotonic()
+
+            if time.monotonic() - last_sent >= keepalive_interval:
+                yield ": ping\n\n"
+                last_sent = time.monotonic()
 
             await asyncio.sleep(interval)
     except asyncio.CancelledError:
