@@ -17,7 +17,7 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 
 ### Core Types
 
-- **`PriceUpdate`** — Immutable dataclass: `ticker`, `price`, `previous_price`, `timestamp`, plus properties `change`, `change_percent`, `direction` ("up"/"down"/"flat"), and `to_dict()` for JSON serialization.
+- **`PriceUpdate`** — Immutable dataclass: `ticker`, `price`, `previous_price`, `timestamp`, `session_open` (first price seen this session), plus properties `change`, `change_percent` (tick-to-tick), `session_change_percent` (vs session open — the "daily change %"), `direction` ("up"/"down"/"flat"), and `to_dict()` for JSON serialization.
 
 - **`PriceCache`** — Thread-safe in-memory store. Key methods:
   - `update(ticker, price, timestamp=None) -> PriceUpdate`
@@ -36,8 +36,10 @@ from app.market import PriceCache, PriceUpdate, MarketDataSource, create_market_
 ```python
 from app.market import create_stream_router
 
-router = create_stream_router(price_cache)  # Returns FastAPI APIRouter
+router = create_stream_router(price_cache)  # Returns a new FastAPI APIRouter per call
 # Endpoint: GET /api/stream/prices (text/event-stream)
+# Sends one event with all tickers when the cache changes (~500ms), and a
+# `: ping` comment after 15s without data. Payload format: see planning/PLAN.md §6.
 ```
 
 ### Seed Data
