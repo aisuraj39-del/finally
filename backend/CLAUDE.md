@@ -7,6 +7,21 @@ cd backend
 uv sync --extra dev   # Install all dependencies including test/lint tools
 ```
 
+## App Layout
+
+```bash
+uv run uvicorn app.main:app --reload   # http://localhost:8000 (reads ../.env)
+```
+
+- `app/main.py` — `create_app(settings, source_factory)`; lifespan initializes the DB, starts market data with watchlist ∪ positions, runs the 30s snapshot task. Static frontend is mounted at `/` only if `STATIC_DIR` (default `backend/static`) exists
+- `app/config.py` — `Settings` from env (`DB_PATH`, `STATIC_DIR`, `MASSIVE_API_KEY`, `LLM_MOCK`)
+- `app/db/` — `schema.sql`, `Database` (per-call connections, `BEGIN IMMEDIATE`, lazy init + seed), `utc_now()` fixed-width ISO timestamps
+- `app/errors.py` — `ApiError(code, message, status)` → `{"detail": {"code", "message"}}`
+- `app/services/` — business logic. **Use `actions.trade / add_to_watchlist / remove_from_watchlist` for any user-initiated change (including LLM chat)**: they validate, run in one transaction, and keep the data source's tracked tickers in sync
+- `app/api/` — thin routers over services; get the `AppContext` via `Depends(get_ctx)`
+
+Tests for this layer are in `tests/core/` and use a `FakeSource` with fixed prices (see `tests/core/conftest.py`).
+
 ## Market Data API
 
 The market data subsystem lives in `app/market/`. Use these imports:
